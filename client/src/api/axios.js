@@ -1,7 +1,8 @@
+
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -38,11 +39,13 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
+
   async (error) => {
     const originalRequest = error.config;
 
     if (
       error.response?.status !== 401 ||
+      !originalRequest ||
       originalRequest._retry ||
       originalRequest.url?.includes("/auth/login") ||
       originalRequest.url?.includes("/auth/refresh") ||
@@ -64,14 +67,12 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      // Fetch a fresh CSRF token and cookie
-      const csrfResponse = await axios.get(
-        "http://localhost:5000/api/auth/csrf-token",
-        { withCredentials: true }
-      );
+      // Get a fresh CSRF token
+      const csrfResponse = await api.get("/auth/csrf-token");
 
       const csrfToken = csrfResponse.data.csrfToken;
 
+      // Refresh the access token
       const refreshResponse = await api.post(
         "/auth/refresh",
         {},

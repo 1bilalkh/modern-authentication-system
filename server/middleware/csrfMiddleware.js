@@ -11,12 +11,13 @@ const {
 
   cookieOptions: {
     httpOnly: false,
-    secure: false, // Localhost development only
+    secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
   },
 
   size: 64,
+
   ignoredMethods: ["GET", "HEAD", "OPTIONS"],
 });
 

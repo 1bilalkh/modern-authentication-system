@@ -16,7 +16,7 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 const app = express();
 
-// Middleware
+// CORS
 app.use(
   cors({
     origin: process.env.CLIENT_URL,
@@ -24,9 +24,28 @@ app.use(
   })
 );
 
+// Common middleware
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.use(cookieParser());
+
+// Health check (does not require database)
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Authentication API is running",
+  });
+});
+
+// Connect MongoDB before API requests
+app.use("/api", async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // CSRF token endpoint
 app.get("/api/auth/csrf-token", (req, res) => {
@@ -38,19 +57,11 @@ app.get("/api/auth/csrf-token", (req, res) => {
   });
 });
 
-// Health check
-app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Authentication API is running",
-  });
-});
-
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 
-// Handle unknown routes
+// Unknown routes
 app.use((req, res) => {
   return res.status(404).json({
     success: false,
@@ -78,7 +89,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server after database connection
+// Local development server
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
@@ -94,4 +105,10 @@ async function startServer() {
   }
 }
 
-startServer();
+// Start only when running locally
+if (require.main === module) {
+  startServer();
+}
+
+// Vercel uses the exported Express application
+module.exports = app;
